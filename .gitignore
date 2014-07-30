@@ -21,3 +21,6 @@ project/plugins/project/
 # Idea specific
 .idea
 timus-scala.iml
+
+# Project specific
+testing.sc
