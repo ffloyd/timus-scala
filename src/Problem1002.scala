@@ -1,8 +1,6 @@
 import scala.annotation.tailrec
 
 object Problem1002 {
-  val stringOrder = Ordering.by { (_: String).size }
-
   def wordToNumbers(word: String): String = {
     word.map {
       case 'i' | 'j'        => '1'
@@ -20,24 +18,34 @@ object Problem1002 {
 
   def prepareDict(raw: List[String]): List[(String, String)] = raw.map { x => (x, wordToNumbers(x)) }
 
-  def solve(number: String, dict: List[(String, String)]): Option[String] = {
-    def generateCandidate(word: String, numericWord: String): Option[String] = {
-      if ((number.size >= numericWord.size) && (number.substring(0, numericWord.size) == numericWord))
+  def solve(number: String, dict: List[(String, String)]): List[String] = {
+    def numberBeginsWith(numericWord: String): Boolean =
+      (number.size >= numericWord.size) &&
+        (number.substring(0, numericWord.size) == numericWord)
+
+    def generateCandidate(dictEntry: (String, String)): List[String] = {
+      val (word, numericWord) = dictEntry
+
+      if (numberBeginsWith(numericWord))
         if (number.size == numericWord.size)
-          Some(word)
+          List(word)
         else
           solve(number.substring(numericWord.size), dict) match {
-            case Some(result: String) => Some(s"$word $result")
-            case None => None
+            case Nil    => Nil
+            case result => word :: result
           }
       else
-        None
+        Nil
     }
 
-    dict.flatMap {
-      case (word, numericWord) => generateCandidate(word, numericWord)
-      case _ => None
-    }.reduceOption(stringOrder.min)
+    def cmpF(arg: List[String]): Int = {
+      arg.size match {
+        case 0   => Int.MaxValue
+        case any => any
+      }
+    }
+
+    dict.map(generateCandidate).minBy(cmpF)
   }
 
   @tailrec
@@ -50,9 +58,10 @@ object Problem1002 {
     val rawDict = List.fill(dictSize) { readLine() }
 
     solve(number, prepareDict(rawDict)) match {
-      case Some(result) => println(result)
-      case None => println("No solution.")
+      case Nil      => println("No solution.")
+      case result   => println(result.mkString(" "))
     }
+
     processData()
   }
 
