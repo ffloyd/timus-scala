@@ -51,7 +51,7 @@ object Problem1002 {
 
     def processPartialSolution(ps: PartialSolution): ProcessingResult = {
       @tailrec
-      def recursiveImpl(acc: List[PartialSolution] = Nil, lastItems: List[DictItem] = dict.items): ProcessingResult =
+      def recursiveImpl(acc: List[PartialSolution], lastItems: List[DictItem]): ProcessingResult =
         lastItems match {
           case Nil    => NewPartialSolutions(acc)
           case items  =>
@@ -70,7 +70,7 @@ object Problem1002 {
               recursiveImpl(acc, items.tail)
         }
 
-      recursiveImpl()
+      recursiveImpl(Nil, dict.items)
     }
 
     @tailrec
