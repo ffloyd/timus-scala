@@ -1,5 +1,5 @@
 import scala.annotation.tailrec
-import scala.collection.mutable
+import scala.collection.{mutable, immutable}
 
 case class DictItem(word: String, number: String)
 
@@ -22,6 +22,7 @@ class Dictionary(source: List[String]) {
         case 't' | 'u' | 'v'  => '8'
         case 'w' | 'x' | 'y'  => '9'
         case 'o' | 'q' | 'z'  => '0'
+        case _ => throw sys.error("Unacceptable input")
       }
     )
   }
@@ -29,9 +30,9 @@ class Dictionary(source: List[String]) {
   private def distinctByNumber(list: List[DictItem]): List[DictItem] = {
     val seen = mutable.HashSet[String]()
     list.flatMap { x =>
-      if (seen(x.number))
+      if (seen(x.number)) {
         None
-      else {
+      } else {
         seen += x.number
         Some(x)
       }
@@ -40,65 +41,52 @@ class Dictionary(source: List[String]) {
 }
 
 object Problem1002 {
+  
+  sealed abstract class ProcessingResult()
+  case class Answer(strings: List[String]) extends ProcessingResult
+  case class NewPartialSolutions(solutions: List[PartialSolution]) extends ProcessingResult
 
   def solve(number: String, dict: Dictionary): String = {
-    type State    = List[PartialSolution]
-    type Solution = List[String]
+    val seenPosition  = new mutable.HashSet[Int]
 
-    val positionSeen = mutable.HashSet[Int]()
+    def processPartialSolution(ps: PartialSolution): ProcessingResult = {
+      @tailrec
+      def recursiveImpl(acc: List[PartialSolution] = Nil, lastItems: List[DictItem] = dict.items): ProcessingResult =
+        lastItems match {
+          case Nil    => NewPartialSolutions(acc)
+          case items  =>
+            val item          = items.head
+            val newPosition   = ps.position + item.number.length
+            val matched       = number.startsWith(item.number, ps.position) && !seenPosition(newPosition)
+            val thisIsAnswer  = matched && (newPosition == number.length)
 
-    @tailrec
-    def producePartialState(ps: PartialSolution, init: State = Nil, items: List[DictItem] = dict.items)
-    : Either[State, Solution] = {
-      items match {
-        case Nil => Left(init)
-        case _   =>
-          val item = items.head
-          if (number.startsWith(item.number, ps.position)) {
-            if (ps.position + item.number.size == number.size)
-              Right((item.word :: ps.words).reverse)
-            else {
-              val newPosition = ps.position + item.number.length
-              if (positionSeen(newPosition)) {
-                producePartialState(ps, init, items.tail)
-              }
-              else {
-                positionSeen += newPosition
-                val generated = PartialSolution(newPosition, item.word :: ps.words)
-                producePartialState(ps, generated :: init, items.tail)
-              }
-            }
-          }
-          else
-            producePartialState(ps, init, items.tail)
-      }
-    }
-
-    @tailrec
-    def produceNextState(state: State, init: State = Nil): Either[State, Solution] = state match {
-      case Nil => Left(init)
-      case _   =>
-        producePartialState(state.head) match {
-          case Left(partialState) => produceNextState(state.tail, partialState ::: init)
-          case Right(solution)    => Right(solution)
+            if (thisIsAnswer)
+              Answer((item.word :: ps.words).reverse)
+            else if (matched) {
+              val newPS = PartialSolution(newPosition, item.word :: ps.words)
+              seenPosition += newPosition
+              recursiveImpl(newPS :: acc, items.tail)
+            } else
+              recursiveImpl(acc, items.tail)
         }
+
+      recursiveImpl()
     }
 
-    def BFS(state: State): Solution = {
-      state match {
-        case Nil => Nil
-        case _ =>
-          produceNextState(state) match {
-            case Left(newState)   => BFS(newState)
-            case Right(solution)  => solution
-          }
+    @tailrec
+    def bfs(state: immutable.Queue[PartialSolution]): List[String] = if (state.isEmpty)
+      Nil
+    else {
+      val (current, rest) = state.dequeue
+      processPartialSolution(current) match {
+        case Answer(strings)                => strings
+        case NewPartialSolutions(solutions) => bfs(rest enqueue solutions)
       }
     }
 
-    val initialState: State = List(PartialSolution(0, Nil))
-    BFS(initialState) match {
-      case Nil => "No solution."
-      case any => any.mkString(" ")
+    bfs(immutable.Queue(PartialSolution(0, Nil))) match {
+      case Nil    => "No solution."
+      case answer => answer.mkString(" ")
     }
   }
 
